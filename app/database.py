@@ -1,3 +1,4 @@
+import os
 from typing import AsyncGenerator
 from sqlalchemy.ext.asyncio import create_async_engine, AsyncSession, AsyncEngine
 from sqlalchemy.orm import declarative_base
@@ -11,7 +12,9 @@ from app.tools.sttng_log import setup_logger
 # Настройка логирования
 logger = setup_logger()
 
-DATABASE_URL = "postgresql+asyncpg://postgres:admin@localhost/task_control_fapi"
+DATABASE_URL: str = os.getenv(
+    "DATABASE_URL", "postgresql+asyncpg://postgres:admin@localhost/task_control_fapi"
+)
 
 # Инициализация движка БД
 engine: AsyncEngine
@@ -23,7 +26,9 @@ try:
     )
     logger.info("database.py - База данных успешно создана")
 
-    AsyncSessionLocal = sessionmaker(bind=engine, class_=AsyncSession, expire_on_commit=False)
+    AsyncSessionLocal = sessionmaker(
+        bind=engine, class_=AsyncSession, expire_on_commit=False
+    )
     logger.info("Асинхронный сеанс настроен")
 
 except Exception as e:
@@ -51,7 +56,7 @@ async def get_db() -> AsyncGenerator[AsyncSession, None]:
     except SQLAlchemyError as e:
         logger.error(f"Ошибка базы данных: {str(e)}")
         if session is not None:
-            await session.rollback()
+            session.rollback()
         raise HTTPException(status_code=500, detail="Database operation failed") from e
     finally:
         if session is not None:

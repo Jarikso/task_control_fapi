@@ -1,16 +1,32 @@
 from fastapi import APIRouter, FastAPI, HTTPException
 from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse
+from contextlib import asynccontextmanager
 
-from app.database import engine, Base
 from app.tools.sttng_log import setup_logger
 
+from app.database import engine, Base
+from app.routes.task import task_router
 
 logger = setup_logger()
 
-app = FastAPI(title="Task Control API")
+
 router = APIRouter()
 
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    """
+    Обработчик события запуска приложения.
+    Создает таблицы в базе данных при старте.
+    """
+    try:
+        logger.info('Приложение запущено')
+        await create_tables()
+        yield
+    except Exception as e:
+        logger.critical(f"Ошибка запуска приложения: {str(e)}")
+        raise
+app = FastAPI(lifespan=lifespan)
 
 @app.exception_handler(HTTPException)
 async def http_exception_handler(request, exc):
@@ -65,7 +81,7 @@ async def general_exception_handler(request, exc):
     logger.error(f"Неожиданная ошибка: {str(exc)}", exc_info=True)
     return JSONResponse(
         status_code=500,
-        content={"message": "Internal server error"},
+        content={"message": "Internal server error", "detail": str(exc)},
     )
 
 
@@ -86,25 +102,11 @@ async def create_tables():
             await conn.run_sync(Base.metadata.create_all)
         logger.info("Таблицы базы данных созданы уcпешно")
     except Exception as e:
+        logger.error(f"Ошибка при создании таблиц: {str(e)}", exc_info=True)
         logger.error(f"Ошибка создания таблиц базы данных: {str(e)}")
         raise HTTPException(
             status_code=500, detail="Неудалось инициализировать таблицы базы данных"
         )
 
 
-@app.on_event("startup")
-async def startup_event():
-    """
-    Обработчик события запуска приложения.
-    Создает таблицы в базе данных при старте.
-    """
-    try:
-        await create_tables()
-    except Exception as e:
-        logger.critical(f"Ошибка запуска приложения: {str(e)}")
-        raise
-
-@app.get("/")
-async def root():
-    return {"message": "Hello World"}
-
+app.include_router(task_router.router)

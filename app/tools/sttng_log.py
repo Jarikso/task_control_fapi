@@ -1,11 +1,26 @@
-from loguru import logger
 import sys
-import os
+
+from typing import NoReturn
+from loguru import logger
+from pathlib import Path
 
 
-def setup_logger():
-    """Настройка и возврат логгера loguru."""
-    logger.remove()  # Удаляем стандартный обработчик
+def setup_logger() -> logger:
+    """Настраивает и возвращает конфигурированный логгер loguru.
+
+    Конфигурация включает:
+    - Вывод в консоль (уровень INFO)
+    - Запись в файлы с ротацией (уровень DEBUG)
+    - Стандартизированный формат логов
+
+    Returns:
+        logger: Сконфигурированный экземпляр логгера.
+
+    Example:
+        >>> log = setup_logger()
+        >>> log.info("Тестовое сообщение")
+    """
+    logger.remove()
 
     # Формат логов
     log_format = (
@@ -15,25 +30,46 @@ def setup_logger():
         "<level>{message}</level>"
     )
 
-    # Логи в консоль
+    _setup_console_logging(log_format)
+
+    _setup_file_logging(log_format)
+
+    return logger
+
+
+def _setup_console_logging(format: str) -> NoReturn:
+    """Настраивает вывод логов в консоль.
+
+    Args:
+        format (str): Формат строки лога.
+    """
     logger.add(
         sys.stdout,
         level="INFO",
-        format=log_format,
+        format=format,
         colorize=True,
+        backtrace=True,
+        diagnose=True,
     )
 
-    # Логи в файл (с ротацией)
-    logs_dir = "logs"
-    os.makedirs(logs_dir, exist_ok=True)
+
+def _setup_file_logging(format: str) -> NoReturn:
+    """Настраивает запись логов в файлы с ротацией.
+
+    Args:
+        format (str): Формат строки лога.
+    """
+    logs_dir = Path("logs")
+    logs_dir.mkdir(exist_ok=True)
 
     logger.add(
-        os.path.join(logs_dir, "app_{time:YYYY-MM-DD}.log"),
+        logs_dir / "app_{time:YYYY-MM-DD}.log",
         level="DEBUG",
-        format=log_format,
+        format=format,
         rotation="00:00",
         retention="30 days",
         compression="zip",
+        encoding="utf-8",
+        backtrace=True,
+        diagnose=True,
     )
-
-    return logger
