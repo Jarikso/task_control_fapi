@@ -30,5 +30,4 @@ class BaseRouter(ABC):
         Note:
             Должен быть реализован в дочерних классах.
         """
-        logger.debug("Настройка маршрутов")
-        raise NotImplementedError("Метод _setup_routes должен быть реализован")
+        pass

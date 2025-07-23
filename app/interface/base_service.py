@@ -62,7 +62,7 @@ class BaseService(ABC, Generic[T, K]):
         Raises:
             ValidationError: При ошибках валидации данных.
         """
-        raise NotImplementedError
+        pass
 
     @abstractmethod
     async def get(self, entity_id: int) -> T:
@@ -77,7 +77,7 @@ class BaseService(ABC, Generic[T, K]):
         Raises:
             NotFoundException: Если сущность не найдена.
         """
-        raise NotImplementedError
+        pass
 
     @abstractmethod
     async def update(self, entity_id: int, update_data: K) -> T:
@@ -95,7 +95,7 @@ class BaseService(ABC, Generic[T, K]):
             ValidationError: При ошибках валидации данных.
             BusinessLogicException: При нарушении бизнес-правил.
         """
-        raise NotImplementedError
+        pass
 
     @abstractmethod
     async def get_filtered(
@@ -114,7 +114,7 @@ class BaseService(ABC, Generic[T, K]):
         Raises:
             ValidationError: При невалидных параметрах пагинации.
         """
-        raise NotImplementedError
+        pass
 
     def _validate_pagination(self, offset: int, limit: int) -> None:
         """Валидация параметров пагинации.

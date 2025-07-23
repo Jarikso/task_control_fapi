@@ -106,8 +106,38 @@ class TaskRouter(BaseRouter):
             description="Отмечает продукцию как агрегированную",
         )
 
+    def create_repository(self, db: AsyncSession) -> TaskRepository:
+        """Создает и возвращает экземпляр TaskRepository.
+
+        Args:
+            db (AsyncSession): Сессия базы данных.
+
+        Returns:
+            TaskRepository: Экземпляр репозитория задач.
+        """
+        return TaskRepository(
+            db=db,
+            brigade_repo=BrigadeRepository(db),
+            wc_repo=WorkCenterRepository(db),
+            product_repo=ProductRepository(db),
+        )
+
+    def task_service(self, db: AsyncSession = Depends(get_db)):
+        repo = self.create_repository(db)
+        return TaskService(repo)
+
+    def get_your_service(self, db: AsyncSession = Depends(get_db)):
+        repo = self.create_repository(db)
+        return TaskService(repo)
+
+    def product_service(self, db: AsyncSession = Depends(get_db)):
+        repo = self.create_repository(db)
+        return ProductService(repo)
+
     async def create_tasks(
-        self, tasks: List[schema.TaskCreate], db: AsyncSession = Depends(get_db)
+            self,
+            tasks: List[schema.TaskCreate],
+            db: AsyncSession = Depends(get_db)
     ) -> List[schema.TaskBase]:
         """Массово создает задачи (сменные задания).
 
@@ -122,8 +152,7 @@ class TaskRouter(BaseRouter):
             HTTPException: Если произошла ошибка при создании.
         """
         try:
-            repo = self._create_repository(db)
-            service = TaskService(repo)
+            service = self.task_service(db)
             return await service.create_batch(tasks)
         except Exception as e:
             logger.error(f"Ошибка при массовом создании задач: {str(e)}")
@@ -145,8 +174,7 @@ class TaskRouter(BaseRouter):
             HTTPException: Если произошла ошибка при создании.
         """
         try:
-            repo = self._create_repository(db)
-            service = TaskService(repo)
+            service = self.task_service(db)
             return await service.create(task)
         except Exception as e:
             logger.error(f"Ошибка при создании задачи: {str(e)}")
@@ -169,8 +197,7 @@ class TaskRouter(BaseRouter):
             HTTPException: 400 при других ошибках.
         """
         try:
-            repo = self._create_repository(db)
-            service = TaskService(repo)
+            service = self.task_service(db)
             return await service.get(task_id)
         except TaskNotFoundException as e:
             logger.error(f"Задача {task_id} не найдена: {str(e)}")
@@ -200,8 +227,7 @@ class TaskRouter(BaseRouter):
             HTTPException: 400 при других ошибках.
         """
         try:
-            repo = self._create_repository(db)
-            service = TaskService(repo)
+            service = self.task_service(db)
             return await service.update(task_id, task_update)
         except TaskNotFoundException as e:
             logger.error(f"Задача {task_id} не найдена: {str(e)}")
@@ -244,8 +270,7 @@ class TaskRouter(BaseRouter):
             HTTPException: Если произошла ошибка при получении данных.
         """
         try:
-            repo = self._create_repository(db)
-            service = TaskService(repo)
+            service = self.task_service(db)
             filter_dict = {
                 "status_close": status_close,
                 "batch_number": batch_number,
@@ -280,8 +305,7 @@ class TaskRouter(BaseRouter):
             HTTPException: Если произошла ошибка при добавлении.
         """
         try:
-            repo = self._create_repository(db)
-            product_service = ProductService(repo)
+            product_service = self.product_service(db)
             return await product_service.add_products_to_batches(products_data)
         except Exception as e:
             logger.error(f"Ошибка при добавлении продукции: {str(e)}")
@@ -305,8 +329,7 @@ class TaskRouter(BaseRouter):
             HTTPException: 500 при внутренних ошибках.
         """
         try:
-            repo = self._create_repository(db)
-            product_service = ProductService(repo)
+            product_service = self.product_service(db)
             return await product_service.aggregate_product(
                 task_id=aggregate_data["task_id"], ekn_code=aggregate_data["ekn_code"]
             )
@@ -315,22 +338,6 @@ class TaskRouter(BaseRouter):
         except Exception as e:
             logger.error(f"Ошибка при агрегации: {str(e)}")
             raise HTTPException(status_code=500, detail="Internal server error")
-
-    def _create_repository(self, db: AsyncSession) -> TaskRepository:
-        """Создает и возвращает экземпляр TaskRepository.
-
-        Args:
-            db (AsyncSession): Сессия базы данных.
-
-        Returns:
-            TaskRepository: Экземпляр репозитория задач.
-        """
-        return TaskRepository(
-            db=db,
-            brigade_repo=BrigadeRepository(db),
-            wc_repo=WorkCenterRepository(db),
-            product_repo=ProductRepository(db),
-        )
 
 
 task_router = TaskRouter()

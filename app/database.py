@@ -20,20 +20,15 @@ DATABASE_URL: str = os.getenv(
 engine: AsyncEngine
 AsyncSessionLocal: sessionmaker[AsyncSession]
 
-try:
-    engine = create_async_engine(
-        DATABASE_URL, echo=False, pool_pre_ping=True, pool_recycle=3600
-    )
-    logger.info("database.py - База данных успешно создана")
 
-    AsyncSessionLocal = sessionmaker(
-        bind=engine, class_=AsyncSession, expire_on_commit=False
-    )
-    logger.info("Асинхронный сеанс настроен")
+engine = create_async_engine(
+    DATABASE_URL, echo=False, pool_pre_ping=True, pool_recycle=3600
+)
+logger.info("database.py - База данных успешно создана")
 
-except Exception as e:
-    logger.info(f"Не удалось инициализировать соединение с базой данных: {str(e)}")
-    raise HTTPException(status_code=500, detail="Database initialization failed")
+AsyncSessionLocal = sessionmaker(bind=engine, class_=AsyncSession, expire_on_commit=False)
+logger.info("Асинхронный сеанс настроен")
+
 
 Base: Any = declarative_base()
 
@@ -48,17 +43,14 @@ async def get_db() -> AsyncGenerator[AsyncSession, None]:
     Raises:
         HTTPException: В случае ошибок работы с БД
     """
-    session: AsyncSession | None = None
+    session: AsyncSession = AsyncSessionLocal()
     try:
-        session = AsyncSessionLocal()
-        logger.debug("Сеанс базы данных создан")
+        logger.debug("Создание сессии базы данных")
         yield session
     except SQLAlchemyError as e:
-        logger.error(f"Ошибка базы данных: {str(e)}")
-        if session is not None:
-            session.rollback()
+        logger.exception("Ошибка работы с базой данных")
+        await session.rollback()
         raise HTTPException(status_code=500, detail="Database operation failed") from e
     finally:
-        if session is not None:
-            await session.close()
-            logger.debug("Сеанас базы даннхы закрыт")
+        await session.close()
+        logger.debug("Сессия базы данных закрыта")
